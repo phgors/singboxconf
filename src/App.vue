@@ -191,6 +191,7 @@ const createDefaultModel = () => ({
 
 const model = ref(createDefaultModel())
 const importText = ref('')
+const activeTab = ref('basic')
 
 const outboundTags = computed(() => model.value.outbounds.map((item) => item.tag).filter(Boolean))
 const dnsTags = computed(() => model.value.dns.servers.map((item) => item.tag).filter(Boolean))
@@ -507,7 +508,7 @@ const importConfig = () => {
   <div class="page">
     <el-card shadow="never" class="hero">
       <h1>sing-box 完整配置可视化工具</h1>
-      <p>覆盖 log / dns / inbounds / outbounds / route / rule_set / experimental / ntp，并支持高级 JSON 补充。</p>
+      <p>中文表单 + 分区标签页，支持完整配置编辑、导入、导出。</p>
       <div class="hero-actions">
         <el-button type="primary" @click="copyConfig">复制 JSON</el-button>
         <el-button type="success" @click="downloadConfig">下载 JSON</el-button>
@@ -518,53 +519,77 @@ const importConfig = () => {
     <div class="layout">
       <el-card class="panel" shadow="hover">
         <template #header>
-          <div class="panel-title">可视化配置</div>
+          <div class="panel-title">配置编辑器</div>
         </template>
 
-        <el-collapse>
-          <el-collapse-item title="Log" name="log">
+        <el-tabs v-model="activeTab" class="editor-tabs" stretch>
+          <el-tab-pane label="基础" name="basic">
             <el-form label-position="top">
-              <el-form-item label="level">
-                <el-select v-model="model.log.level">
-                  <el-option label="trace" value="trace" />
-                  <el-option label="debug" value="debug" />
-                  <el-option label="info" value="info" />
-                  <el-option label="warn" value="warn" />
-                  <el-option label="error" value="error" />
-                  <el-option label="fatal" value="fatal" />
-                  <el-option label="panic" value="panic" />
-                </el-select>
-              </el-form-item>
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <el-form-item label="日志级别">
+                    <el-select v-model="model.log.level">
+                      <el-option label="trace" value="trace" />
+                      <el-option label="debug" value="debug" />
+                      <el-option label="info" value="info" />
+                      <el-option label="warn" value="warn" />
+                      <el-option label="error" value="error" />
+                      <el-option label="fatal" value="fatal" />
+                      <el-option label="panic" value="panic" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12" class="switch-col">
+                  <div class="switch-item"><el-switch v-model="model.log.timestamp" /> 日志时间戳</div>
+                  <div class="switch-item"><el-switch v-model="model.log.disabled" /> 禁用日志</div>
+                </el-col>
+              </el-row>
+
+              <el-divider content-position="left">NTP（可选）</el-divider>
               <el-space>
-                <el-switch v-model="model.log.timestamp" /> timestamp
-                <el-switch v-model="model.log.disabled" /> disabled
+                <el-switch v-model="model.ntp.enabled" /> 启用 NTP
               </el-space>
+              <el-row :gutter="12">
+                <el-col :span="16"><el-form-item label="NTP 服务器"><el-input v-model="model.ntp.server" /></el-form-item></el-col>
+                <el-col :span="8"><el-form-item label="NTP 端口"><el-input-number v-model="model.ntp.server_port" :min="1" :max="65535" /></el-form-item></el-col>
+              </el-row>
             </el-form>
-          </el-collapse-item>
+          </el-tab-pane>
 
-          <el-collapse-item title="DNS" name="dns">
+          <el-tab-pane label="DNS" name="dns">
             <el-form label-position="top">
-              <el-form-item label="strategy">
-                <el-select v-model="model.dns.strategy">
-                  <el-option label="ipv4_only" value="ipv4_only" />
-                  <el-option label="ipv6_only" value="ipv6_only" />
-                  <el-option label="prefer_ipv4" value="prefer_ipv4" />
-                  <el-option label="prefer_ipv6" value="prefer_ipv6" />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="final server tag">
-                <el-select v-model="model.dns.final" filterable allow-create default-first-option>
-                  <el-option v-for="tag in dnsTags" :key="tag" :label="tag" :value="tag" />
-                </el-select>
-              </el-form-item>
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <el-form-item label="DNS 策略">
+                    <el-select v-model="model.dns.strategy">
+                      <el-option label="ipv4_only" value="ipv4_only" />
+                      <el-option label="ipv6_only" value="ipv6_only" />
+                      <el-option label="prefer_ipv4" value="prefer_ipv4" />
+                      <el-option label="prefer_ipv6" value="prefer_ipv6" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="最终 DNS 标签">
+                    <el-select v-model="model.dns.final" filterable allow-create default-first-option>
+                      <el-option v-for="tag in dnsTags" :key="tag" :label="tag" :value="tag" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
 
-              <el-divider content-position="left">dns.servers</el-divider>
+              <el-divider content-position="left">DNS 服务器</el-divider>
               <div v-for="(server, index) in model.dns.servers" :key="`dns-server-${index}`" class="block">
-                <el-form-item :label="`tag #${index + 1}`"><el-input v-model="server.tag" /></el-form-item>
-                <el-form-item label="address"><el-input v-model="server.address" /></el-form-item>
-                <el-form-item label="detour"><el-input v-model="server.detour" /></el-form-item>
-                <el-form-item label="address_resolver"><el-input v-model="server.address_resolver" /></el-form-item>
-                <el-form-item label="strategy">
+                <div class="block-title">服务器 #{{ index + 1 }}</div>
+                <el-row :gutter="12">
+                  <el-col :span="12"><el-form-item label="标签"><el-input v-model="server.tag" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="地址"><el-input v-model="server.address" placeholder="https://1.1.1.1/dns-query" /></el-form-item></el-col>
+                </el-row>
+                <el-row :gutter="12">
+                  <el-col :span="12"><el-form-item label="Detour"><el-input v-model="server.detour" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="Address Resolver"><el-input v-model="server.address_resolver" /></el-form-item></el-col>
+                </el-row>
+                <el-form-item label="策略">
                   <el-select v-model="server.strategy">
                     <el-option label="ipv4_only" value="ipv4_only" />
                     <el-option label="ipv6_only" value="ipv6_only" />
@@ -572,192 +597,200 @@ const importConfig = () => {
                     <el-option label="prefer_ipv6" value="prefer_ipv6" />
                   </el-select>
                 </el-form-item>
-                <el-button text type="danger" :disabled="model.dns.servers.length <= 1" @click="removeAt(model.dns.servers, index)">删除</el-button>
+                <el-button text type="danger" :disabled="model.dns.servers.length <= 1" @click="removeAt(model.dns.servers, index)">删除服务器</el-button>
               </div>
-              <el-button plain @click="addItem('dnsServers')">+ 添加 dns server</el-button>
+              <el-button plain @click="addItem('dnsServers')">+ 添加 DNS 服务器</el-button>
 
-              <el-divider content-position="left">dns.rules</el-divider>
+              <el-divider content-position="left">DNS 规则</el-divider>
               <div v-for="(rule, index) in model.dns.rules" :key="`dns-rule-${index}`" class="block">
-                <el-form-item label="server"><el-input v-model="rule.server" placeholder="dns-remote" /></el-form-item>
-                <el-form-item label="outbound"><el-input v-model="rule.outbound" placeholder="direct" /></el-form-item>
-                <el-form-item label="domain_suffix (csv)"><el-input v-model="rule.domain_suffix" /></el-form-item>
-                <el-form-item label="domain_keyword (csv)"><el-input v-model="rule.domain_keyword" /></el-form-item>
-                <el-form-item label="geosite (csv)"><el-input v-model="rule.geosite" /></el-form-item>
-                <el-form-item label="geoip (csv)"><el-input v-model="rule.geoip" /></el-form-item>
-                <el-form-item label="clash_mode"><el-input v-model="rule.clash_mode" placeholder="Rule / Global / Direct" /></el-form-item>
-                <el-button text type="danger" :disabled="model.dns.rules.length <= 1" @click="removeAt(model.dns.rules, index)">删除</el-button>
+                <div class="block-title">规则 #{{ index + 1 }}</div>
+                <el-row :gutter="12">
+                  <el-col :span="12"><el-form-item label="命中后 DNS 服务器"><el-input v-model="rule.server" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="命中后出站"><el-input v-model="rule.outbound" /></el-form-item></el-col>
+                </el-row>
+                <el-form-item label="domain_suffix（逗号分隔）"><el-input v-model="rule.domain_suffix" /></el-form-item>
+                <el-form-item label="domain_keyword（逗号分隔）"><el-input v-model="rule.domain_keyword" /></el-form-item>
+                <el-form-item label="geosite（逗号分隔）"><el-input v-model="rule.geosite" /></el-form-item>
+                <el-form-item label="geoip（逗号分隔）"><el-input v-model="rule.geoip" /></el-form-item>
+                <el-form-item label="clash 模式"><el-input v-model="rule.clash_mode" placeholder="Rule / Global / Direct" /></el-form-item>
+                <el-button text type="danger" :disabled="model.dns.rules.length <= 1" @click="removeAt(model.dns.rules, index)">删除规则</el-button>
               </div>
-              <el-button plain @click="addItem('dnsRules')">+ 添加 dns rule</el-button>
+              <el-button plain @click="addItem('dnsRules')">+ 添加 DNS 规则</el-button>
             </el-form>
-          </el-collapse-item>
+          </el-tab-pane>
 
-          <el-collapse-item title="Inbounds" name="inbounds">
+          <el-tab-pane label="入站 Inbounds" name="inbounds">
             <div v-for="(inbound, index) in model.inbounds" :key="`inbound-${index}`" class="block">
+              <div class="block-title">入站 #{{ index + 1 }}</div>
               <el-form label-position="top">
-                <el-form-item label="type">
-                  <el-select v-model="inbound.type">
-                    <el-option label="mixed" value="mixed" />
-                    <el-option label="socks" value="socks" />
-                    <el-option label="http" value="http" />
-                    <el-option label="tun" value="tun" />
-                    <el-option label="redirect" value="redirect" />
-                    <el-option label="tproxy" value="tproxy" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="tag"><el-input v-model="inbound.tag" /></el-form-item>
-                <el-form-item label="listen"><el-input v-model="inbound.listen" /></el-form-item>
-                <el-form-item label="listen_port"><el-input-number v-model="inbound.listen_port" :min="1" :max="65535" /></el-form-item>
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <el-form-item label="类型">
+                      <el-select v-model="inbound.type">
+                        <el-option label="mixed" value="mixed" />
+                        <el-option label="socks" value="socks" />
+                        <el-option label="http" value="http" />
+                        <el-option label="tun" value="tun" />
+                        <el-option label="redirect" value="redirect" />
+                        <el-option label="tproxy" value="tproxy" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8"><el-form-item label="标签"><el-input v-model="inbound.tag" /></el-form-item></el-col>
+                  <el-col :span="8"><el-form-item label="监听地址"><el-input v-model="inbound.listen" /></el-form-item></el-col>
+                </el-row>
+                <el-form-item label="监听端口"><el-input-number v-model="inbound.listen_port" :min="1" :max="65535" /></el-form-item>
                 <el-space>
-                  <el-switch v-model="inbound.sniff" /> sniff
-                  <el-switch v-model="inbound.sniff_override_destination" /> sniff_override_destination
+                  <el-switch v-model="inbound.sniff" /> 启用 sniff
+                  <el-switch v-model="inbound.sniff_override_destination" /> 覆盖目标地址
                 </el-space>
-                <el-form-item label="users (JSON array)">
+                <el-form-item label="用户列表（JSON 数组，可留空）">
                   <el-input v-model="inbound.users_json" type="textarea" :rows="4" placeholder='[{"username":"u","password":"p"}]' />
                 </el-form-item>
               </el-form>
-              <el-button text type="danger" :disabled="model.inbounds.length <= 1" @click="removeAt(model.inbounds, index)">删除 inbound</el-button>
+              <el-button text type="danger" :disabled="model.inbounds.length <= 1" @click="removeAt(model.inbounds, index)">删除入站</el-button>
             </div>
-            <el-button plain @click="addItem('inbounds')">+ 添加 inbound</el-button>
-          </el-collapse-item>
+            <el-button plain @click="addItem('inbounds')">+ 添加入站</el-button>
+          </el-tab-pane>
 
-          <el-collapse-item title="Outbounds" name="outbounds">
+          <el-tab-pane label="出站 Outbounds" name="outbounds">
             <div v-for="(outbound, index) in model.outbounds" :key="`outbound-${index}`" class="block">
+              <div class="block-title">出站 #{{ index + 1 }}</div>
               <el-form label-position="top">
-                <el-form-item label="type">
-                  <el-select v-model="outbound.type">
-                    <el-option label="selector" value="selector" />
-                    <el-option label="urltest" value="urltest" />
-                    <el-option label="direct" value="direct" />
-                    <el-option label="block" value="block" />
-                    <el-option label="dns" value="dns" />
-                    <el-option label="vless" value="vless" />
-                    <el-option label="vmess" value="vmess" />
-                    <el-option label="trojan" value="trojan" />
-                    <el-option label="shadowsocks" value="shadowsocks" />
-                    <el-option label="hysteria2" value="hysteria2" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="tag"><el-input v-model="outbound.tag" /></el-form-item>
+                <el-row :gutter="12">
+                  <el-col :span="10">
+                    <el-form-item label="类型">
+                      <el-select v-model="outbound.type">
+                        <el-option label="selector" value="selector" />
+                        <el-option label="urltest" value="urltest" />
+                        <el-option label="direct" value="direct" />
+                        <el-option label="block" value="block" />
+                        <el-option label="dns" value="dns" />
+                        <el-option label="vless" value="vless" />
+                        <el-option label="vmess" value="vmess" />
+                        <el-option label="trojan" value="trojan" />
+                        <el-option label="shadowsocks" value="shadowsocks" />
+                        <el-option label="hysteria2" value="hysteria2" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="14"><el-form-item label="标签"><el-input v-model="outbound.tag" /></el-form-item></el-col>
+                </el-row>
 
                 <template v-if="['selector', 'urltest'].includes(outbound.type)">
-                  <el-form-item label="outbounds (csv)"><el-input v-model="outbound.outbounds" placeholder="auto,direct,proxy-a" /></el-form-item>
+                  <el-form-item label="包含节点（逗号分隔）"><el-input v-model="outbound.outbounds" placeholder="auto,direct,proxy-a" /></el-form-item>
                 </template>
                 <template v-if="outbound.type === 'urltest'">
-                  <el-form-item label="url"><el-input v-model="outbound.url" /></el-form-item>
-                  <el-form-item label="interval"><el-input v-model="outbound.interval" placeholder="3m" /></el-form-item>
+                  <el-row :gutter="12">
+                    <el-col :span="16"><el-form-item label="测速 URL"><el-input v-model="outbound.url" /></el-form-item></el-col>
+                    <el-col :span="8"><el-form-item label="测速间隔"><el-input v-model="outbound.interval" placeholder="3m" /></el-form-item></el-col>
+                  </el-row>
                 </template>
 
                 <template v-if="['vless', 'vmess', 'trojan', 'shadowsocks', 'hysteria2'].includes(outbound.type)">
-                  <el-form-item label="server"><el-input v-model="outbound.server" /></el-form-item>
-                  <el-form-item label="server_port"><el-input-number v-model="outbound.server_port" :min="1" :max="65535" /></el-form-item>
+                  <el-row :gutter="12">
+                    <el-col :span="16"><el-form-item label="服务器地址"><el-input v-model="outbound.server" /></el-form-item></el-col>
+                    <el-col :span="8"><el-form-item label="端口"><el-input-number v-model="outbound.server_port" :min="1" :max="65535" /></el-form-item></el-col>
+                  </el-row>
                 </template>
 
-                <el-form-item v-if="['vless', 'vmess'].includes(outbound.type)" label="uuid"><el-input v-model="outbound.uuid" /></el-form-item>
-                <el-form-item v-if="['trojan', 'shadowsocks', 'hysteria2'].includes(outbound.type)" label="password"><el-input v-model="outbound.password" /></el-form-item>
-                <el-form-item v-if="outbound.type === 'shadowsocks'" label="method"><el-input v-model="outbound.method" /></el-form-item>
+                <el-form-item v-if="['vless', 'vmess'].includes(outbound.type)" label="UUID"><el-input v-model="outbound.uuid" /></el-form-item>
+                <el-form-item v-if="['trojan', 'shadowsocks', 'hysteria2'].includes(outbound.type)" label="密码"><el-input v-model="outbound.password" /></el-form-item>
+                <el-form-item v-if="outbound.type === 'shadowsocks'" label="加密方法"><el-input v-model="outbound.method" /></el-form-item>
 
                 <el-space>
-                  <el-switch v-model="outbound.tls" /> tls.enabled
-                  <el-switch v-model="outbound.multiplex" /> multiplex.enabled
+                  <el-switch v-model="outbound.tls" /> 开启 TLS
+                  <el-switch v-model="outbound.multiplex" /> 开启复用 Multiplex
                 </el-space>
               </el-form>
-              <el-button text type="danger" :disabled="model.outbounds.length <= 1" @click="removeAt(model.outbounds, index)">删除 outbound</el-button>
+              <el-button text type="danger" :disabled="model.outbounds.length <= 1" @click="removeAt(model.outbounds, index)">删除出站</el-button>
             </div>
-            <el-button plain @click="addItem('outbounds')">+ 添加 outbound</el-button>
-          </el-collapse-item>
+            <el-button plain @click="addItem('outbounds')">+ 添加出站</el-button>
+          </el-tab-pane>
 
-          <el-collapse-item title="Route + Rule Set" name="route">
+          <el-tab-pane label="路由 Route" name="route">
             <el-form label-position="top">
-              <el-form-item label="final outbound">
-                <el-select v-model="model.route.final" filterable allow-create default-first-option>
-                  <el-option v-for="tag in outboundTags" :key="tag" :label="tag" :value="tag" />
-                </el-select>
-              </el-form-item>
-              <el-space>
-                <el-switch v-model="model.route.auto_detect_interface" /> auto_detect_interface
-              </el-space>
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <el-form-item label="默认出站 final">
+                    <el-select v-model="model.route.final" filterable allow-create default-first-option>
+                      <el-option v-for="tag in outboundTags" :key="tag" :label="tag" :value="tag" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12" class="switch-col">
+                  <div class="switch-item"><el-switch v-model="model.route.auto_detect_interface" /> 自动识别网卡</div>
+                </el-col>
+              </el-row>
 
-              <el-divider content-position="left">route.rules</el-divider>
+              <el-divider content-position="left">路由规则 route.rules</el-divider>
               <div v-for="(rule, index) in model.route.rules" :key="`route-rule-${index}`" class="block">
-                <el-form-item label="outbound"><el-input v-model="rule.outbound" /></el-form-item>
-                <el-form-item label="protocol (csv)"><el-input v-model="rule.protocol" /></el-form-item>
-                <el-form-item label="domain_suffix (csv)"><el-input v-model="rule.domain_suffix" /></el-form-item>
-                <el-form-item label="domain_keyword (csv)"><el-input v-model="rule.domain_keyword" /></el-form-item>
-                <el-form-item label="geosite (csv)"><el-input v-model="rule.geosite" /></el-form-item>
-                <el-form-item label="geoip (csv)"><el-input v-model="rule.geoip" /></el-form-item>
-                <el-form-item label="ip_cidr (csv)"><el-input v-model="rule.ip_cidr" /></el-form-item>
-                <el-form-item label="port (csv)"><el-input v-model="rule.port" /></el-form-item>
-                <el-form-item label="network (csv)"><el-input v-model="rule.network" /></el-form-item>
-                <el-form-item label="package_name (csv)"><el-input v-model="rule.package_name" /></el-form-item>
-                <el-form-item label="process_name (csv)"><el-input v-model="rule.process_name" /></el-form-item>
+                <div class="block-title">路由规则 #{{ index + 1 }}</div>
+                <el-form-item label="命中后出站"><el-input v-model="rule.outbound" /></el-form-item>
+                <el-form-item label="协议 protocol（逗号分隔）"><el-input v-model="rule.protocol" /></el-form-item>
+                <el-form-item label="domain_suffix（逗号分隔）"><el-input v-model="rule.domain_suffix" /></el-form-item>
+                <el-form-item label="domain_keyword（逗号分隔）"><el-input v-model="rule.domain_keyword" /></el-form-item>
+                <el-form-item label="geosite（逗号分隔）"><el-input v-model="rule.geosite" /></el-form-item>
+                <el-form-item label="geoip（逗号分隔）"><el-input v-model="rule.geoip" /></el-form-item>
+                <el-form-item label="ip_cidr（逗号分隔）"><el-input v-model="rule.ip_cidr" /></el-form-item>
+                <el-form-item label="端口 port（逗号分隔）"><el-input v-model="rule.port" /></el-form-item>
+                <el-form-item label="网络 network（逗号分隔）"><el-input v-model="rule.network" /></el-form-item>
+                <el-form-item label="包名 package_name（逗号分隔）"><el-input v-model="rule.package_name" /></el-form-item>
+                <el-form-item label="进程 process_name（逗号分隔）"><el-input v-model="rule.process_name" /></el-form-item>
                 <el-form-item label="clash_mode"><el-input v-model="rule.clash_mode" /></el-form-item>
-                <el-button text type="danger" :disabled="model.route.rules.length <= 1" @click="removeAt(model.route.rules, index)">删除 rule</el-button>
+                <el-button text type="danger" :disabled="model.route.rules.length <= 1" @click="removeAt(model.route.rules, index)">删除规则</el-button>
               </div>
-              <el-button plain @click="addItem('routeRules')">+ 添加 route rule</el-button>
+              <el-button plain @click="addItem('routeRules')">+ 添加路由规则</el-button>
 
-              <el-divider content-position="left">route.rule_set</el-divider>
+              <el-divider content-position="left">规则集 route.rule_set</el-divider>
               <div v-for="(item, index) in model.route.rule_set" :key="`rule-set-${index}`" class="block">
-                <el-form-item label="tag"><el-input v-model="item.tag" /></el-form-item>
-                <el-form-item label="type">
-                  <el-select v-model="item.type">
-                    <el-option label="remote" value="remote" />
-                    <el-option label="local" value="local" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="format">
-                  <el-select v-model="item.format">
-                    <el-option label="binary" value="binary" />
-                    <el-option label="source" value="source" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="url"><el-input v-model="item.url" /></el-form-item>
-                <el-form-item label="path"><el-input v-model="item.path" /></el-form-item>
-                <el-form-item label="download_detour"><el-input v-model="item.download_detour" /></el-form-item>
-                <el-form-item label="update_interval"><el-input v-model="item.update_interval" placeholder="1d" /></el-form-item>
-                <el-button text type="danger" :disabled="model.route.rule_set.length <= 1" @click="removeAt(model.route.rule_set, index)">删除 rule_set</el-button>
+                <div class="block-title">规则集 #{{ index + 1 }}</div>
+                <el-row :gutter="12">
+                  <el-col :span="12"><el-form-item label="标签"><el-input v-model="item.tag" /></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="类型"><el-select v-model="item.type"><el-option label="remote" value="remote" /><el-option label="local" value="local" /></el-select></el-form-item></el-col>
+                </el-row>
+                <el-row :gutter="12">
+                  <el-col :span="12"><el-form-item label="格式"><el-select v-model="item.format"><el-option label="binary" value="binary" /><el-option label="source" value="source" /></el-select></el-form-item></el-col>
+                  <el-col :span="12"><el-form-item label="更新间隔"><el-input v-model="item.update_interval" placeholder="1d" /></el-form-item></el-col>
+                </el-row>
+                <el-form-item label="URL"><el-input v-model="item.url" /></el-form-item>
+                <el-form-item label="本地路径"><el-input v-model="item.path" /></el-form-item>
+                <el-form-item label="下载出口"><el-input v-model="item.download_detour" /></el-form-item>
+                <el-button text type="danger" :disabled="model.route.rule_set.length <= 1" @click="removeAt(model.route.rule_set, index)">删除规则集</el-button>
               </div>
-              <el-button plain @click="addItem('ruleSet')">+ 添加 rule_set</el-button>
+              <el-button plain @click="addItem('ruleSet')">+ 添加规则集</el-button>
             </el-form>
-          </el-collapse-item>
+          </el-tab-pane>
 
-          <el-collapse-item title="Experimental + NTP + Extra JSON" name="extra">
+          <el-tab-pane label="实验功能" name="experimental">
             <el-form label-position="top">
-              <el-divider content-position="left">experimental.cache_file</el-divider>
-              <el-space>
-                <el-switch v-model="model.experimental.cache_file.enabled" /> enabled
-              </el-space>
-              <el-form-item label="path"><el-input v-model="model.experimental.cache_file.path" placeholder="cache.db" /></el-form-item>
+              <el-divider content-position="left">缓存文件 experimental.cache_file</el-divider>
+              <el-space><el-switch v-model="model.experimental.cache_file.enabled" /> 启用缓存文件</el-space>
+              <el-form-item label="缓存文件路径"><el-input v-model="model.experimental.cache_file.path" placeholder="cache.db" /></el-form-item>
 
-              <el-divider content-position="left">experimental.clash_api</el-divider>
-              <el-form-item label="external_controller"><el-input v-model="model.experimental.clash_api.external_controller" /></el-form-item>
-              <el-form-item label="secret"><el-input v-model="model.experimental.clash_api.secret" /></el-form-item>
-              <el-form-item label="default_mode"><el-input v-model="model.experimental.clash_api.default_mode" /></el-form-item>
-              <el-form-item label="external_ui"><el-input v-model="model.experimental.clash_api.external_ui" /></el-form-item>
+              <el-divider content-position="left">Clash API experimental.clash_api</el-divider>
+              <el-form-item label="控制器地址"><el-input v-model="model.experimental.clash_api.external_controller" /></el-form-item>
+              <el-form-item label="访问密钥"><el-input v-model="model.experimental.clash_api.secret" /></el-form-item>
+              <el-form-item label="默认模式"><el-input v-model="model.experimental.clash_api.default_mode" /></el-form-item>
+              <el-form-item label="外部 UI 路径"><el-input v-model="model.experimental.clash_api.external_ui" /></el-form-item>
 
-              <el-divider content-position="left">ntp</el-divider>
-              <el-space>
-                <el-switch v-model="model.ntp.enabled" /> enabled
-              </el-space>
-              <el-form-item label="server"><el-input v-model="model.ntp.server" /></el-form-item>
-              <el-form-item label="server_port"><el-input-number v-model="model.ntp.server_port" :min="1" :max="65535" /></el-form-item>
-
-              <el-divider content-position="left">extra_json (高级补充，会 merge 到根对象)</el-divider>
+              <el-divider content-position="left">高级补充 extra_json（合并到根配置）</el-divider>
               <el-form-item>
                 <el-input v-model="model.extra_json" type="textarea" :rows="8" placeholder='{"certificate":[...],"custom":{}}' />
               </el-form-item>
             </el-form>
-          </el-collapse-item>
-        </el-collapse>
+          </el-tab-pane>
+        </el-tabs>
       </el-card>
 
       <el-card class="panel" shadow="hover">
         <template #header><div class="panel-title">JSON 预览 / 导入</div></template>
         <el-form label-position="top">
-          <el-form-item label="生成配置（只读）">
-            <el-input :model-value="configJson" type="textarea" :rows="30" readonly />
+          <el-form-item label="当前生成配置（只读）">
+            <el-input :model-value="configJson" type="textarea" :rows="28" readonly />
           </el-form-item>
-          <el-form-item label="导入 sing-box JSON">
-            <el-input v-model="importText" type="textarea" :rows="14" placeholder="粘贴完整配置后点击导入" />
+          <el-form-item label="粘贴 sing-box JSON 并导入">
+            <el-input v-model="importText" type="textarea" :rows="12" placeholder="粘贴完整 JSON 后点击下方按钮" />
           </el-form-item>
           <el-button type="primary" @click="importConfig">导入并覆盖当前表单</el-button>
         </el-form>
@@ -768,7 +801,7 @@ const importConfig = () => {
 
 <style scoped>
 .page {
-  max-width: 1500px;
+  max-width: 1520px;
   margin: 0 auto;
   padding: 20px;
 }
@@ -796,16 +829,22 @@ const importConfig = () => {
 
 .layout {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1.25fr 1fr;
   gap: 16px;
 }
 
 .panel {
-  min-height: 640px;
+  min-height: 700px;
 }
 
 .panel-title {
   font-weight: 600;
+}
+
+.editor-tabs :deep(.el-tabs__content) {
+  max-height: 68vh;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .block {
@@ -816,9 +855,30 @@ const importConfig = () => {
   margin-bottom: 10px;
 }
 
+.block-title {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.switch-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.switch-item {
+  color: #4b5563;
+}
+
 @media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .editor-tabs :deep(.el-tabs__content) {
+    max-height: none;
   }
 }
 </style>
